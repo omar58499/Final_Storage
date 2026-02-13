@@ -56,7 +56,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import apiClient from '../services/apiClient'
 
 const email = ref('')
 const password = ref('')
@@ -67,7 +67,7 @@ const handleSignup = async () => {
   error.value = ''
   
   try {
-    const res = await axios.post('/api/auth/signup', {
+    const res = await apiClient.post('/api/auth/signup', {
       email: email.value,
       password: password.value
     })

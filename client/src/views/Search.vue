@@ -72,7 +72,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import apiClient from '../services/apiClient'
 
 const files = ref([])
 const searchQuery = ref('')
@@ -88,7 +88,7 @@ const fetchFiles = async () => {
     if (searchQuery.value) params.search = searchQuery.value
     if (filterDate.value) params.date = filterDate.value
     
-    const res = await axios.get('http://localhost:5000/api/files', {
+    const res = await apiClient.get('/api/files', {
       headers: { 'x-auth-token': token },
       params
     })
@@ -124,13 +124,14 @@ const isPreviewable = (file) => {
 
 const getFileUrl = (file) => {
     const token = localStorage.getItem('token')
-  return `http://localhost:5000/api/files/${file.id}/content?token=${token}`
+    const baseUrl = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin)
+    return `${baseUrl}/api/files/${file.id}/content?token=${token}`
 }
 
 const downloadFile = async (file) => {
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get(`http://localhost:5000/api/files/${file.id}/content`, {
+    const response = await apiClient.get(`/api/files/${file.id}/content`, {
         headers: { 'x-auth-token': token },
         responseType: 'blob'
     })
@@ -152,7 +153,7 @@ const deleteFile = async (id) => {
 
   try {
     const token = localStorage.getItem('token')
-    await axios.delete(`http://localhost:5000/api/files/${id}`, {
+    await apiClient.delete(`/api/files/${id}`, {
       headers: { 'x-auth-token': token }
     })
     fetchFiles() // Refresh list

@@ -46,7 +46,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
+import apiClient from '../services/apiClient'
 import { useRouter } from 'vue-router'
 
 const fileInput = ref(null)
@@ -92,7 +92,7 @@ const uploadFile = async () => {
   }
 
   try {
-    await axios.get('/api/auth/verify', {
+    await apiClient.get('/api/auth/verify', {
       headers: { 'x-auth-token': token }
     })
   } catch (err) {
@@ -109,7 +109,7 @@ const uploadFile = async () => {
   formData.append('date', selectedDate.value)
 
   try {
-    await axios.post('/api/files/upload', formData, {
+    await apiClient.post('/api/files/upload', formData, {
       headers: {
         'x-auth-token': token
       }
