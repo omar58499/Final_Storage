@@ -12,7 +12,7 @@
         <div>
           <h1 class="text-2xl font-bold text-white">File Browser</h1>
           <p class="text-gray-400 text-sm">Securely manage and preview your files</p>
-          <p class="text-gray-500 text-xs mt-1">Signed in as {{ userEmail }}</p>
+          <p class="text-gray-500 text-xs mt-1">Signed in as user@example.com</p>
         </div>
       </div>
       <button @click="logout" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition duration-200">
@@ -67,23 +67,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const userEmail = ref('')
-
-onMounted(() => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      userEmail.value = payload.user.email
-    } catch (err) {
-      console.error('Failed to decode token:', err)
-    }
-  }
-})
 
 const logout = () => {
   localStorage.removeItem('token')

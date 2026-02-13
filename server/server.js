@@ -7,20 +7,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-
-// CORS configuration - allow requests from Netlify frontend
-const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:5175',
-    process.env.CLIENT_URL || ''
-  ].filter(Boolean),
-  credentials: true
-};
-
-app.use(cors(corsOptions));
+app.use(cors());
 
 // Initialize Supabase
 const supabase = require('./config/supabase');

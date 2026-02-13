@@ -19,8 +19,7 @@
 
         <div>
           <label class="block text-sm font-medium text-gray-400 mb-1">Rename File (Optional)</label>
-          <input v-model="displayName" @input="checkDisplayNameExists" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500 focus:ring-red-500': displayNameError }" placeholder="Enter new name" />
-          <p v-if="displayNameError" class="text-red-500 text-sm mt-2">{{ displayNameError }}</p>
+          <input v-model="displayName" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter new name" />
         </div>
 
         <div>
@@ -29,7 +28,7 @@
         </div>
 
         <div class="flex space-x-4 pt-4">
-          <button @click="uploadFile" :disabled="displayNameError" class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition">
+          <button @click="uploadFile" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">
             Upload
           </button>
           <button @click="resetSelection" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition">
@@ -56,7 +55,6 @@ const displayName = ref('')
 const selectedDate = ref('')
 const message = ref('')
 const isError = ref(false)
-const displayNameError = ref('')
 const router = useRouter()
 
 const triggerFileInput = () => {
@@ -73,37 +71,11 @@ const onFileSelected = (event) => {
     selectedDate.value = today
   }
 }
-checkDisplayNameExists = async () => {
-  if (!displayName.value.trim()) {
-    displayNameError.value = ''
-    return
-  }
-
-  const token = localStorage.getItem('token')
-  if (!token) return
-
-  try {
-    const response = await apiClient.get('/api/files', {
-      params: { search: displayName.value },
-      headers: { 'x-auth-token': token }
-    })
-    
-    if (response.data.some(file => file.displayName === displayName.value)) {
-      displayNameError.value = 'Please select a different name. This name is already in use.'
-    } else {
-      displayNameError.value = ''
-    }
-  } catch (err) {
-    console.error('Error checking display name:', err)
-  }
-}
 
 const resetSelection = () => {
   selectedFile.value = null
   displayName.value = ''
   selectedDate.value = ''
-  message.value = ''
-  displayNameErrordDate.value = ''
   message.value = ''
   if (fileInput.value) fileInput.value.value = ''
 }
