@@ -15,7 +15,6 @@ const corsOptions = {
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
-    'https://608f802.--regal-sfogliatella-9e1cc7.netlify.app',
     process.env.CLIENT_URL || ''
   ].filter(Boolean),
   credentials: true
