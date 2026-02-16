@@ -101,20 +101,26 @@ router.post('/upload', auth, (req, res, next) => {
       return res.status(403).json({ msg: 'Only admin can upload files' });
     }
 
-    const { displayName, date } = req.body;
-    const finalName = displayName || req.file.originalname;
+    const { displayName, date, guardianName, address } = req.body;
     
-    const { data: existingFile, error: checkError } = await supabase
-      .from('files')
-      .select('id')
-      .ilike('display_name', displayName || req.file.originalname)
-      .maybeSingle();
-
-    if (existingFile) {
-      return res.status(409).json({
-        msg: 'File with this name already exists. Kindly select another name.'
-      });
+    // Validate required fields
+    if (!displayName || !displayName.trim()) {
+      return res.status(400).json({ msg: 'Rename File is required' });
     }
+    
+    if (!guardianName || !guardianName.trim()) {
+      return res.status(400).json({ msg: 'Guardian Name is required' });
+    }
+    
+    if (!address || !address.trim()) {
+      return res.status(400).json({ msg: 'Address is required' });
+    }
+
+    // Trim whitespace
+    const trimmedDisplayName = displayName.trim();
+    const trimmedGuardianName = guardianName.trim();
+    const trimmedAddress = address.trim();
+    
     // Generate Sequential GR Number
     const grNumber = await getNextGrNumber();
 
@@ -124,12 +130,14 @@ router.post('/upload', auth, (req, res, next) => {
         {
           filename: req.file.filename,
           original_name: req.file.originalname,
-          display_name: displayName || req.file.originalname,
+          display_name: trimmedDisplayName,
           gr_number: grNumber,
           size: req.file.size,
           mimetype: req.file.mimetype,
           path: path.join('uploads', req.file.filename).replace(/\\/g, '/'),
           user_selected_date: normalizeSelectedDate(date),
+          guardian_name: trimmedGuardianName,
+          address: trimmedAddress,
           owner: req.user.id,
           uploaded_by_role: req.user.role  
         }
@@ -160,8 +168,8 @@ router.get('/', auth, async (req, res) => {
       
 
     if (search) {
-      // Search by display name or GR number
-      query = query.or(`display_name.ilike.%${search}%,gr_number.ilike.%${search}%`);
+      // Search by display name, GR number, guardian name, or address (case-insensitive, partial match)
+      query = query.or(`display_name.ilike.%${search}%,gr_number.ilike.%${search}%,guardian_name.ilike.%${search}%,address.ilike.%${search}%`);
     }
 
     if (date) {

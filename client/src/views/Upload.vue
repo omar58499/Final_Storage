@@ -18,9 +18,21 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-1">Rename File (Optional)</label>
-          <input v-model="displayName" @input="checkDisplayNameUniqueness" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': displayNameError }" placeholder="Enter new name" />
+          <label class="block text-sm font-medium text-gray-400 mb-1">Rename File <span class="text-red-500">*</span></label>
+          <input v-model="displayName" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': displayNameError }" placeholder="Enter new name" />
           <p v-if="displayNameError" class="text-red-500 text-sm mt-1">{{ displayNameError }}</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-400 mb-1">Guardian Name <span class="text-red-500">*</span></label>
+          <input v-model="guardianName" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': guardianNameError }" placeholder="Enter guardian name" />
+          <p v-if="guardianNameError" class="text-red-500 text-sm mt-1">{{ guardianNameError }}</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-400 mb-1">Address <span class="text-red-500">*</span></label>
+          <textarea v-model="address" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': addressError }" placeholder="Enter address" rows="3"></textarea>
+          <p v-if="addressError" class="text-red-500 text-sm mt-1">{{ addressError }}</p>
         </div>
 
         <div>
@@ -58,11 +70,15 @@ import { useRouter } from 'vue-router'
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const displayName = ref('')
+const guardianName = ref('')
+const address = ref('')
 const selectedDate = ref('')
 const message = ref('')
 const isError = ref(false)
 const router = useRouter()
 const displayNameError = ref('')
+const guardianNameError = ref('')
+const addressError = ref('')
 const isAdmin = ref(false)
 const isPromoting = ref(false)
 
@@ -94,19 +110,27 @@ const onFileSelected = (event) => {
   if (file) {
     selectedFile.value = file
     displayName.value = file.name
+    guardianName.value = ''
+    address.value = ''
     // Default date to today
     const today = new Date().toISOString().split('T')[0]
     selectedDate.value = today
     displayNameError.value = ''
+    guardianNameError.value = ''
+    addressError.value = ''
   }
 }
 
 const resetSelection = () => {
   selectedFile.value = null
   displayName.value = ''
+  guardianName.value = ''
+  address.value = ''
   selectedDate.value = ''
   message.value = ''
   displayNameError.value = ''
+  guardianNameError.value = ''
+  addressError.value = ''
   if (fileInput.value) fileInput.value.value = ''
 }
 
@@ -127,34 +151,34 @@ const promoteToAdmin = async () => {
   }
 }
 
-const checkDisplayNameUniqueness = async () => {
-  const value = displayName.value.trim()
+const validateForm = () => {
+  let isValid = true
   
-  if (!value) {
-    displayNameError.value = ''
-    return
-  }
-
-  try {
-    const { data } = await apiClient.get('/api/files', {
-      params: { search: value }
-    })
-
-    // Check if any file has the same display_name (case-insensitive)
-    const duplicate = data.some(file => 
-      file.display_name && file.display_name.toLowerCase() === value.toLowerCase()
-    )
-
-    if (duplicate) {
-      displayNameError.value = 'This name is already in use by another existing file'
-    } else {
-      displayNameError.value = ''
-    }
-  } catch (err) {
-    console.error('Failed to check display name:', err)
-    // Don't block upload on validation check error
+  // Validate display name
+  if (!displayName.value || !displayName.value.trim()) {
+    displayNameError.value = 'Rename File is required'
+    isValid = false
+  } else {
     displayNameError.value = ''
   }
+
+  // Validate guardian name
+  if (!guardianName.value || !guardianName.value.trim()) {
+    guardianNameError.value = 'Guardian Name is required'
+    isValid = false
+  } else {
+    guardianNameError.value = ''
+  }
+
+  // Validate address
+  if (!address.value || !address.value.trim()) {
+    addressError.value = 'Address is required'
+    isValid = false
+  } else {
+    addressError.value = ''
+  }
+
+  return isValid
 }
 
 const uploadFile = async () => {
@@ -166,8 +190,8 @@ const uploadFile = async () => {
     return
   }
 
-  if (displayNameError.value) {
-    message.value = 'Please resolve validation errors before uploading.'
+  if (!validateForm()) {
+    message.value = 'Please fill in all required fields.'
     isError.value = true
     return
   }
@@ -192,7 +216,9 @@ const uploadFile = async () => {
 
   const formData = new FormData()
   formData.append('file', selectedFile.value)
-  formData.append('displayName', displayName.value)
+  formData.append('displayName', displayName.value.trim())
+  formData.append('guardianName', guardianName.value.trim())
+  formData.append('address', address.value.trim())
   formData.append('date', selectedDate.value)
 
   try {

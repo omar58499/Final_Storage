@@ -10,7 +10,7 @@
             v-model="searchQuery" 
             @keyup.enter="fetchFiles"
             type="text" 
-            placeholder="Search by name or GR number..." 
+            placeholder="Search by name, guardian name, address, or GR number..." 
             class="flex-1 bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <input 
@@ -27,12 +27,18 @@
         <div v-for="file in files" :key="file.id" class="bg-gray-800 p-4 rounded-lg flex items-center justify-between hover:bg-gray-750 transition border border-gray-700">
           <div class="flex items-center space-x-4 cursor-pointer flex-1" @click="openPreview(file)">
             <div class="text-3xl">📄</div>
-            <div>
+            <div class="flex-1">
               <div class="font-bold text-lg">{{ file.display_name }}</div>
-              <div class="text-sm text-gray-400">
-                <span class="mr-3">GR: {{ file.gr_number }}</span>
-                <span class="mr-3">Size: {{ (file.size / 1024).toFixed(2) }} KB</span>
-                <span>Date: {{ formatSelectedDate(file.user_selected_date) }}</span>
+              <div class="text-sm text-gray-400 space-y-1">
+                <div>
+                  <span class="mr-3">GR: {{ file.gr_number }}</span>
+                  <span class="mr-3">Size: {{ (file.size / 1024).toFixed(2) }} KB</span>
+                  <span>Date: {{ formatSelectedDate(file.user_selected_date) }}</span>
+                </div>
+                <div v-if="file.guardian_name || file.address" class="text-gray-500">
+                  <span v-if="file.guardian_name" class="mr-3">Guardian: {{ file.guardian_name }}</span>
+                  <span v-if="file.address">Address: {{ file.address }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -51,7 +57,13 @@
     <!-- Full Page Preview Overlay -->
     <div v-if="previewFile" class="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col p-4">
       <div class="flex justify-between items-center mb-4 text-white">
-        <h2 class="text-xl font-bold">{{ previewFile.display_name }} ({{ previewFile.gr_number }})</h2>
+        <div>
+          <h2 class="text-xl font-bold">{{ previewFile.display_name }} ({{ previewFile.gr_number }})</h2>
+          <div class="text-sm text-gray-400 mt-2">
+            <span v-if="previewFile.guardian_name" class="mr-4">Guardian: {{ previewFile.guardian_name }}</span>
+            <span v-if="previewFile.address">Address: {{ previewFile.address }}</span>
+          </div>
+        </div>
         <button @click="closePreview" class="text-gray-300 hover:text-white text-2xl">✕</button>
       </div>
       <div class="flex-1 bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center relative">

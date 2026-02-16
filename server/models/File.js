@@ -30,6 +30,16 @@ const FileSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  guardianName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  address: {
+    type: String,
+    required: true,
+    trim: true
+  },
   userSelectedDate: {
     type: Date,
     default: Date.now

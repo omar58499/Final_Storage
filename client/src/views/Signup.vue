@@ -1,6 +1,16 @@
 <template>
   <div class="flex items-center justify-center min-h-screen bg-gray-900">
     <div class="w-full max-w-md p-8 space-y-8 bg-gray-800 rounded-lg shadow-lg">
+      <!-- Logo and Organization Name -->
+      <div class="flex flex-col items-center space-y-4 mb-8">
+        <img 
+          src="/logo.jpeg" 
+          alt="Nagar Nigam Rudrapur Logo" 
+          class="w-32 h-32 object-contain"
+        />
+        <h1 class="text-2xl font-bold text-center text-white">Nagar Nigam Rudrapur</h1>
+      </div>
+
       <h2 class="text-3xl font-bold text-center text-white">Sign Up</h2>
 
       <form @submit.prevent="handleSignup" class="space-y-6">

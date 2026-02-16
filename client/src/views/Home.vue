@@ -2,7 +2,13 @@
   <div class="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
     <nav class="bg-gray-800 border-b border-gray-700 py-4 px-6">
       <div class="max-w-7xl mx-auto flex justify-between items-center">
-        <h1 class="text-2xl font-bold">File Manager</h1>
+        <div class="flex items-center space-x-3">
+          <img src="/logo.jpeg" alt="Nagar Nigam Rudrapur Logo" class="h-12 w-12 rounded-full">
+          <div>
+            <h1 class="text-2xl font-bold">Nagar Nigam Rudrapur</h1>
+            <h1 class="text-2xl font-bold">नगर निगम रुद्रपुर, जिला उधम सिंह नगर, उत्तराखंड</h1>
+          </div>
+        </div>
         <div class="space-x-4">
           <router-link to="/login" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700">
             Login
@@ -16,7 +22,7 @@
 
     <main class="max-w-7xl mx-auto px-6 py-16">
       <div class="text-center mb-16">
-        <h2 class="text-5xl font-bold mb-4">Welcome to File Manager</h2>
+        <h2 class="text-5xl font-bold mb-4">Welcome to Document Management Software</h2>
         <p class="text-xl text-gray-400 mb-8">
           Securely store, organize, and manage your files in one place
         </p>
