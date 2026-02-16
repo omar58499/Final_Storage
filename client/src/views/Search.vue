@@ -38,7 +38,7 @@
           </div>
           <div class="flex space-x-2">
             <button @click.stop="downloadFile(file)" class="p-2 text-blue-400 hover:text-blue-300" title="Download">⬇️</button>
-            <button @click.stop="deleteFile(file.id)" class="p-2 text-red-400 hover:text-red-300" title="Delete">🗑️</button>
+            <button v-if="isAdmin" @click.stop="deleteFile(file.id)" class="p-2 text-red-400 hover:text-red-300" title="Delete">🗑️</button>
           </div>
         </div>
         
@@ -79,17 +79,16 @@ const searchQuery = ref('')
 const filterDate = ref('')
 const loading = ref(false)
 const previewFile = ref(null)
+const isAdmin = ref(false)
 
 const fetchFiles = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
     const params = {}
     if (searchQuery.value) params.search = searchQuery.value
     if (filterDate.value) params.date = filterDate.value
     
     const res = await apiClient.get('/api/files', {
-      headers: { 'x-auth-token': token },
       params
     })
     files.value = res.data
@@ -130,9 +129,7 @@ const getFileUrl = (file) => {
 
 const downloadFile = async (file) => {
   try {
-    const token = localStorage.getItem('token')
     const response = await apiClient.get(`/api/files/${file.id}/content`, {
-        headers: { 'x-auth-token': token },
         responseType: 'blob'
     })
     
@@ -152,10 +149,7 @@ const deleteFile = async (id) => {
   if (!confirm('Are you sure you want to delete this file?')) return
 
   try {
-    const token = localStorage.getItem('token')
-    await apiClient.delete(`/api/files/${id}`, {
-      headers: { 'x-auth-token': token }
-    })
+    await apiClient.delete(`/api/files/${id}`)
     fetchFiles() // Refresh list
   } catch (err) {
     console.error('Delete failed', err)
@@ -164,6 +158,17 @@ const deleteFile = async (id) => {
 }
 
 onMounted(() => {
+  // Check if user is admin
+  const token = localStorage.getItem('token')
+  if (token) {
+    apiClient.get('/api/auth/verify')
+      .then(res => {
+        isAdmin.value = res.data.user.role === 'admin'
+      })
+      .catch(err => {
+        console.error('Failed to verify admin status:', err)
+      })
+  }
   fetchFiles()
 })
 </script>

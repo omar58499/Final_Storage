@@ -91,12 +91,30 @@ router.post('/upload', auth, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ msg: 'No file uploaded' });
+    console.log('Upload request received');
+    console.log('User:', req.user);
+    console.log('File:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+    console.log('Body:', req.body);
+
+    if (req.user.role !== 'admin') {
+      console.error('Access denied: User is not admin. Role:', req.user.role);
+      return res.status(403).json({ msg: 'Only admin can upload files' });
     }
 
     const { displayName, date } = req.body;
+    const finalName = displayName || req.file.originalname;
+    
+    const { data: existingFile, error: checkError } = await supabase
+      .from('files')
+      .select('id')
+      .ilike('display_name', displayName || req.file.originalname)
+      .maybeSingle();
 
+    if (existingFile) {
+      return res.status(409).json({
+        msg: 'File with this name already exists. Kindly select another name.'
+      });
+    }
     // Generate Sequential GR Number
     const grNumber = await getNextGrNumber();
 
@@ -112,7 +130,8 @@ router.post('/upload', auth, (req, res, next) => {
           mimetype: req.file.mimetype,
           path: path.join('uploads', req.file.filename).replace(/\\/g, '/'),
           user_selected_date: normalizeSelectedDate(date),
-          owner: req.user.id
+          owner: req.user.id,
+          uploaded_by_role: req.user.role  
         }
       ])
       .select()
@@ -137,8 +156,8 @@ router.get('/', auth, async (req, res) => {
     const { search, date } = req.query;
     let query = supabase
       .from('files')
-      .select('*')
-      .eq('owner', req.user.id);
+      .select('*');
+      
 
     if (search) {
       // Search by display name or GR number
@@ -183,10 +202,6 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-    if (file.owner !== req.user.id) {
-      return res.status(401).json({ msg: 'Not authorized' });
-    }
-
     res.json(file);
   } catch (err) {
     console.error(err.message);
@@ -215,10 +230,6 @@ router.get('/:id/content', async (req, res) => {
           return res.status(404).send('File not found');
         }
 
-        if (file.owner !== userId) {
-            return res.status(401).send('Not authorized');
-        }
-
         const filePath = path.join(__dirname, '../', file.path);
         if (fs.existsSync(filePath)) {
             res.sendFile(filePath);
@@ -242,13 +253,15 @@ router.delete('/:id', auth, async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ msg: 'Only admin can delete files' });
+    }
+
+
     if (error || !file) {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-    if (file.owner !== req.user.id) {
-      return res.status(401).json({ msg: 'Not authorized' });
-    }
 
     // Delete from FS
     const filePath = path.join(__dirname, '../', file.path);

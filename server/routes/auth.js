@@ -9,7 +9,61 @@ const auth = require('../middleware/auth');
 // @desc    Verify auth token
 // @access  Private
 router.get('/verify', auth, async (req, res) => {
-  res.json({ valid: true, user: req.user });
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ msg: 'User not found' });
+    }
+
+    console.log('User verification:', { id: user.id, email: user.email, role: user.role });
+
+    res.json({
+      valid: true,
+      user
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: 'Verification failed' });
+  }
+});
+
+// @route   POST api/auth/make-admin
+// @desc    Make user admin (first user becomes admin)
+// @access  Private
+router.post('/make-admin', auth, async (req, res) => {
+  try {
+    // Count total users
+    const { count } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+
+    // Only allow if first user or if already admin
+    if (count === 1 || req.user.role === 'admin') {
+      const { data: updatedUser, error } = await supabase
+        .from('users')
+        .update({ role: 'admin' })
+        .eq('id', req.user.id)
+        .select()
+        .single();
+
+      if (error) {
+        return res.status(500).json({ msg: 'Error updating user', error: error.message });
+      }
+
+      console.log('User promoted to admin:', updatedUser.email);
+      res.json({ msg: 'User is now admin', user: updatedUser });
+    } else {
+      res.status(403).json({ msg: 'Only first user can be made admin' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
 });
 
 // @route   POST api/auth/signup
@@ -37,7 +91,7 @@ router.post('/signup', async (req, res) => {
     // Create user
     const { data: user, error } = await supabase
       .from('users')
-      .insert([{ email, password: hashedPassword }])
+      .insert([{ email, password: hashedPassword, role: 'user' }])
       .select()
       .single();
 
@@ -48,7 +102,9 @@ router.post('/signup', async (req, res) => {
     // Create JWT token
     const payload = {
       user: {
-        id: user.id
+        id: user.id,
+        role: user.role,
+        email: user.email
       }
     };
 
@@ -94,7 +150,9 @@ router.post('/login', async (req, res) => {
     // Create JWT token
     const payload = {
       user: {
-        id: user.id
+        id: user.id,
+        role: user.role,
+        email: user.email
       }
     };
 

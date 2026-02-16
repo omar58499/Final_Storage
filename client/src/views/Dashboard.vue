@@ -12,7 +12,7 @@
         <div>
           <h1 class="text-2xl font-bold text-white">File Browser</h1>
           <p class="text-gray-400 text-sm">Securely manage and preview your files</p>
-          <p class="text-gray-500 text-xs mt-1">Signed in as user@example.com</p>
+          <p class="text-gray-500 text-xs mt-1">Signed in as {{ userEmail || 'loading...' }}</p>
         </div>
       </div>
       <button @click="logout" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition duration-200">
@@ -23,6 +23,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       <!-- Upload Card -->
       <div 
+        v-if="isAdmin"
         @click="$router.push('/upload')"
         class="bg-gray-800 rounded-xl shadow-lg cursor-pointer hover:bg-gray-750 transition duration-200 border border-gray-700 overflow-hidden group"
       >
@@ -67,9 +68,27 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import apiClient from '../services/apiClient'
 
 const router = useRouter()
+const userEmail = ref('')
+const isAdmin = ref(false)
+
+onMounted(async () => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    try {
+      const res = await apiClient.get('/api/auth/verify')
+      userEmail.value = res.data.user.email
+      isAdmin.value = res.data.user.role === 'admin'
+    } catch (err) {
+      console.error('Failed to fetch user data:', err)
+      logout()
+    }
+  }
+})
 
 const logout = () => {
   localStorage.removeItem('token')
