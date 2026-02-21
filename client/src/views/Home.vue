@@ -5,7 +5,7 @@
         <div class="flex items-center space-x-3">
           <img src="/logo.jpeg" alt="Nagar Nigam Rudrapur Logo" class="h-12 w-12 rounded-full">
           <div>
-            <h1 class="text-2xl font-bold">Nagar Nigam Rudrapur</h1>
+            <h1 class="text-2xl font-bold">Nagar Nigam Rudrapur, Distt. Udham Singh Nagar, Uttrakhand.</h1>
             <h1 class="text-2xl font-bold">नगर निगम रुद्रपुर, जिला उधम सिंह नगर, उत्तराखंड</h1>
           </div>
         </div>

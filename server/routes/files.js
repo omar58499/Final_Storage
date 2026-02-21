@@ -22,7 +22,10 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  preservePath: true
+});
 
 function normalizeSelectedDate(dateValue) {
   if (!dateValue || typeof dateValue !== 'string') {
@@ -77,82 +80,112 @@ async function getNextGrNumber() {
 // @route   POST api/files/upload
 // @desc    Upload a file
 // @access  Private
-router.post('/upload', auth, (req, res, next) => {
-  upload.single('file')(req, res, (err) => {
-    if (!err) {
-      return next();
-    }
-
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({ msg: 'Upload failed', error: err.message });
-    }
-
-    return res.status(500).json({ msg: 'Upload failed', error: err.message || 'Unknown upload error' });
-  });
-}, async (req, res) => {
+router.post('/upload', auth, upload.single('file'), async (req, res) => {
   try {
-    console.log('Upload request received');
+    console.log('\n===== UPLOAD REQUEST =====');
     console.log('User:', req.user);
-    console.log('File:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
-    console.log('Body:', req.body);
+    
+    if (!req.file) {
+      console.error('No file in request');
+      return res.status(400).json({ msg: 'No file was uploaded' });
+    }
+    
+    console.log('File received:', {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
 
+    console.log('req.body type:', typeof req.body);
+    console.log('req.body keys:', Object.keys(req.body || {}));
+    console.log('Full req.body:', JSON.stringify(req.body, null, 2));
+    
+    // Log each field individually
+    console.log('Field extraction:');
+    console.log('  displayName:', req.body?.displayName, `(type: ${typeof req.body?.displayName})`);
+    console.log('  personName:', req.body?.personName, `(type: ${typeof req.body?.personName})`);
+    console.log('  guardianName:', req.body?.guardianName, `(type: ${typeof req.body?.guardianName})`);
+    console.log('  propertyNumber:', req.body?.propertyNumber, `(type: ${typeof req.body?.propertyNumber})`);
+    console.log('  address:', req.body?.address, `(type: ${typeof req.body?.address})`);
+    console.log('  date:', req.body?.date, `(type: ${typeof req.body?.date})`);
+    
     if (req.user.role !== 'admin') {
       console.error('Access denied: User is not admin. Role:', req.user.role);
       return res.status(403).json({ msg: 'Only admin can upload files' });
     }
 
-    const { displayName, date, guardianName, address } = req.body;
+    // Extract fields
+    const displayName = (req.body.displayName || '').toString().trim();
+    const date = (req.body.date || '').toString().trim();
+    const personName = (req.body.personName || '').toString().trim();
+    const guardianName = (req.body.guardianName || '').toString().trim();
+    const propertyNumber = (req.body.propertyNumber || '').toString().trim();
+    const address = (req.body.address || '').toString().trim();
+    
+    console.log('After extraction and trim:', { 
+      displayName, 
+      personName, 
+      guardianName, 
+      propertyNumber, 
+      address, 
+      date 
+    });
     
     // Validate required fields
-    if (!displayName || !displayName.trim()) {
+    if (!displayName) {
       return res.status(400).json({ msg: 'Rename File is required' });
     }
     
-    if (!guardianName || !guardianName.trim()) {
+    if (!guardianName) {
       return res.status(400).json({ msg: 'Guardian Name is required' });
     }
     
-    if (!address || !address.trim()) {
+    if (!address) {
       return res.status(400).json({ msg: 'Address is required' });
     }
-
-    // Trim whitespace
-    const trimmedDisplayName = displayName.trim();
-    const trimmedGuardianName = guardianName.trim();
-    const trimmedAddress = address.trim();
     
     // Generate Sequential GR Number
     const grNumber = await getNextGrNumber();
 
+    const insertData = {
+      filename: req.file.filename,
+      original_name: req.file.originalname,
+      display_name: displayName,
+      gr_number: grNumber,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      path: path.join('uploads', req.file.filename).replace(/\\/g, '/'),
+      user_selected_date: normalizeSelectedDate(date),
+      person_name: personName,
+      guardian_name: guardianName,
+      property_number: propertyNumber,
+      address: address,
+      owner: req.user.id,
+      uploaded_by_role: req.user.role
+    };
+
+    console.log('Insert data for Supabase:', JSON.stringify(insertData, null, 2));
+
     const { data: file, error } = await supabase
       .from('files')
-      .insert([
-        {
-          filename: req.file.filename,
-          original_name: req.file.originalname,
-          display_name: trimmedDisplayName,
-          gr_number: grNumber,
-          size: req.file.size,
-          mimetype: req.file.mimetype,
-          path: path.join('uploads', req.file.filename).replace(/\\/g, '/'),
-          user_selected_date: normalizeSelectedDate(date),
-          guardian_name: trimmedGuardianName,
-          address: trimmedAddress,
-          owner: req.user.id,
-          uploaded_by_role: req.user.role  
-        }
-      ])
+      .insert([insertData])
       .select()
       .single();
 
     if (error) {
+      console.error('Supabase insert error:', error);
       return res.status(500).json({ msg: 'Error uploading file', error: error.message });
     }
 
+    console.log('SUCCESS: File inserted');
+    console.log('Returned data:', JSON.stringify(file, null, 2));
+    console.log('===== UPLOAD COMPLETE =====\n');
+    
     res.json(file);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    console.error('Upload error:', err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 
@@ -161,15 +194,32 @@ router.post('/upload', auth, (req, res, next) => {
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const { search, date } = req.query;
+    const { search, date, personName, guardianName, propertyNumber, address } = req.query;
     let query = supabase
       .from('files')
       .select('*');
       
 
     if (search) {
-      // Search by display name, GR number, guardian name, or address (case-insensitive, partial match)
-      query = query.or(`display_name.ilike.%${search}%,gr_number.ilike.%${search}%,guardian_name.ilike.%${search}%,address.ilike.%${search}%`);
+      // Search by display name, GR number, person name, guardian name, property number, or address (case-insensitive, partial match)
+      query = query.or(`display_name.ilike.%${search}%,gr_number.ilike.%${search}%,person_name.ilike.%${search}%,guardian_name.ilike.%${search}%,property_number.ilike.%${search}%,address.ilike.%${search}%`);
+    }
+
+    // Add individual field filters if provided
+    if (personName) {
+      query = query.ilike('person_name', `%${personName}%`);
+    }
+
+    if (guardianName) {
+      query = query.ilike('guardian_name', `%${guardianName}%`);
+    }
+
+    if (propertyNumber) {
+      query = query.ilike('property_number', `%${propertyNumber}%`);
+    }
+
+    if (address) {
+      query = query.ilike('address', `%${address}%`);
     }
 
     if (date) {

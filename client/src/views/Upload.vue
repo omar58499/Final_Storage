@@ -24,14 +24,26 @@
         </div>
 
         <div>
+          <label class="block text-sm font-medium text-gray-400 mb-1">Person Name <span class="text-red-500">*</span></label>
+          <input v-model="personName" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': personNameError }" placeholder="Enter person name" />
+          <p v-if="personNameError" class="text-red-500 text-sm mt-1">{{ personNameError }}</p>
+        </div>
+
+        <div>
           <label class="block text-sm font-medium text-gray-400 mb-1">Guardian Name <span class="text-red-500">*</span></label>
           <input v-model="guardianName" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': guardianNameError }" placeholder="Enter guardian name" />
           <p v-if="guardianNameError" class="text-red-500 text-sm mt-1">{{ guardianNameError }}</p>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-400 mb-1">Address <span class="text-red-500">*</span></label>
-          <textarea v-model="address" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': addressError }" placeholder="Enter address" rows="3"></textarea>
+          <label class="block text-sm font-medium text-gray-400 mb-1">Property Number <span class="text-red-500">*</span></label>
+          <input v-model="propertyNumber" type="text" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': propertyNumberError }" placeholder="Enter property number" />
+          <p v-if="propertyNumberError" class="text-red-500 text-sm mt-1">{{ propertyNumberError }}</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-400 mb-1">Mohalla / Address <span class="text-red-500">*</span></label>
+          <textarea v-model="address" class="w-full bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500" :class="{ 'border-red-500': addressError }" placeholder="Enter Mohalla / Address" rows="3"></textarea>
           <p v-if="addressError" class="text-red-500 text-sm mt-1">{{ addressError }}</p>
         </div>
 
@@ -70,14 +82,18 @@ import { useRouter } from 'vue-router'
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const displayName = ref('')
+const personName = ref('')
 const guardianName = ref('')
+const propertyNumber = ref('')
 const address = ref('')
 const selectedDate = ref('')
 const message = ref('')
 const isError = ref(false)
 const router = useRouter()
 const displayNameError = ref('')
+const personNameError = ref('')
 const guardianNameError = ref('')
+const propertyNumberError = ref('')
 const addressError = ref('')
 const isAdmin = ref(false)
 const isPromoting = ref(false)
@@ -110,13 +126,17 @@ const onFileSelected = (event) => {
   if (file) {
     selectedFile.value = file
     displayName.value = file.name
+    personName.value = ''
     guardianName.value = ''
+    propertyNumber.value = ''
     address.value = ''
     // Default date to today
     const today = new Date().toISOString().split('T')[0]
     selectedDate.value = today
     displayNameError.value = ''
+    personNameError.value = ''
     guardianNameError.value = ''
+    propertyNumberError.value = ''
     addressError.value = ''
   }
 }
@@ -124,12 +144,16 @@ const onFileSelected = (event) => {
 const resetSelection = () => {
   selectedFile.value = null
   displayName.value = ''
+  personName.value = ''
   guardianName.value = ''
+  propertyNumber.value = ''
   address.value = ''
   selectedDate.value = ''
   message.value = ''
   displayNameError.value = ''
+  personNameError.value = ''
   guardianNameError.value = ''
+  propertyNumberError.value = ''
   addressError.value = ''
   if (fileInput.value) fileInput.value.value = ''
 }
@@ -162,6 +186,14 @@ const validateForm = () => {
     displayNameError.value = ''
   }
 
+  // Validate person name
+  if (!personName.value || !personName.value.trim()) {
+    personNameError.value = 'Person Name is required'
+    isValid = false
+  } else {
+    personNameError.value = ''
+  }
+
   // Validate guardian name
   if (!guardianName.value || !guardianName.value.trim()) {
     guardianNameError.value = 'Guardian Name is required'
@@ -170,9 +202,17 @@ const validateForm = () => {
     guardianNameError.value = ''
   }
 
+  // Validate property number
+  if (!propertyNumber.value || !propertyNumber.value.trim()) {
+    propertyNumberError.value = 'Property Number is required'
+    isValid = false
+  } else {
+    propertyNumberError.value = ''
+  }
+
   // Validate address
   if (!address.value || !address.value.trim()) {
-    addressError.value = 'Address is required'
+    addressError.value = 'Mohalla / Address is required'
     isValid = false
   } else {
     addressError.value = ''
@@ -217,9 +257,21 @@ const uploadFile = async () => {
   const formData = new FormData()
   formData.append('file', selectedFile.value)
   formData.append('displayName', displayName.value.trim())
+  formData.append('personName', personName.value.trim())
   formData.append('guardianName', guardianName.value.trim())
+  formData.append('propertyNumber', propertyNumber.value.trim())
   formData.append('address', address.value.trim())
   formData.append('date', selectedDate.value)
+
+  // Log FormData contents for debugging
+  console.log('FormData contents:');
+  for (let [key, value] of formData.entries()) {
+    if (key !== 'file') {
+      console.log(`  ${key}: ${value}`);
+    } else {
+      console.log(`  ${key}: [File object]`);
+    }
+  }
 
   try {
     const response = await apiClient.post('/api/files/upload', formData)

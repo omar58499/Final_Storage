@@ -5,8 +5,9 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(express.json());
+// Middleware - order matters! Don't use json/urlencoded on file upload routes
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors());
 
 // Initialize Supabase

@@ -10,7 +10,7 @@
             v-model="searchQuery" 
             @keyup.enter="fetchFiles"
             type="text" 
-            placeholder="Search by name, guardian name, address, or GR number..." 
+            placeholder="Search by name, person, guardian, property number, address, or GR number..." 
             class="flex-1 bg-gray-700 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <input 
@@ -35,9 +35,13 @@
                   <span class="mr-3">Size: {{ (file.size / 1024).toFixed(2) }} KB</span>
                   <span>Date: {{ formatSelectedDate(file.user_selected_date) }}</span>
                 </div>
-                <div v-if="file.guardian_name || file.address" class="text-gray-500">
+                <div class="text-gray-500">
+                  <span v-if="file.person_name" class="mr-3">Person: {{ file.person_name }}</span>
                   <span v-if="file.guardian_name" class="mr-3">Guardian: {{ file.guardian_name }}</span>
-                  <span v-if="file.address">Address: {{ file.address }}</span>
+                  <span v-if="file.property_number" class="mr-3">Property #: {{ file.property_number }}</span>
+                </div>
+                <div v-if="file.address" class="text-gray-500">
+                  Address: {{ file.address }}
                 </div>
               </div>
             </div>
@@ -59,9 +63,15 @@
       <div class="flex justify-between items-center mb-4 text-white">
         <div>
           <h2 class="text-xl font-bold">{{ previewFile.display_name }} ({{ previewFile.gr_number }})</h2>
-          <div class="text-sm text-gray-400 mt-2">
-            <span v-if="previewFile.guardian_name" class="mr-4">Guardian: {{ previewFile.guardian_name }}</span>
-            <span v-if="previewFile.address">Address: {{ previewFile.address }}</span>
+          <div class="text-sm text-gray-400 mt-2 space-y-1">
+            <div v-if="previewFile.person_name || previewFile.guardian_name || previewFile.property_number">
+              <span v-if="previewFile.person_name" class="mr-4">Person: {{ previewFile.person_name }}</span>
+              <span v-if="previewFile.guardian_name" class="mr-4">Guardian: {{ previewFile.guardian_name }}</span>
+              <span v-if="previewFile.property_number" class="mr-4">Property #: {{ previewFile.property_number }}</span>
+            </div>
+            <div v-if="previewFile.address">
+              Address: {{ previewFile.address }}
+            </div>
           </div>
         </div>
         <button @click="closePreview" class="text-gray-300 hover:text-white text-2xl">✕</button>
