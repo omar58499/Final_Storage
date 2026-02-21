@@ -38,7 +38,7 @@
                 <div class="text-gray-500">
                   <span v-if="file.person_name" class="mr-3">Person: {{ file.person_name }}</span>
                   <span v-if="file.guardian_name" class="mr-3">Guardian: {{ file.guardian_name }}</span>
-                  <span v-if="file.property_number" class="mr-3">Property #: {{ file.property_number }}</span>
+                  <span v-if="file.property_number" class="mr-3">Property No: {{ file.property_number }}</span>
                 </div>
                 <div v-if="file.address" class="text-gray-500">
                   Address: {{ file.address }}
