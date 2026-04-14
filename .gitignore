@@ -1,0 +1,3 @@
+server/uploads/
+*.mp4
+node_modules/
