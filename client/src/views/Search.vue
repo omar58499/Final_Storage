@@ -77,11 +77,22 @@
         <button @click="closePreview" class="text-gray-300 hover:text-white text-2xl">✕</button>
       </div>
       <div class="flex-1 bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center relative">
-        <iframe 
-          v-if="isPreviewable(previewFile)"
-          :src="getFileUrl(previewFile)" 
-          class="w-full h-full border-none"
-        ></iframe>
+        <div v-if="isPreviewable(previewFile)" class="w-full h-full">
+          <iframe 
+            :src="getFileUrl(previewFile)" 
+            class="w-full h-full border-none"
+            :key="previewFile.id"
+            allow="fullscreen"
+            @error="handleIframeError"
+          ></iframe>
+          <div v-if="iframeError" class="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-90 text-center">
+            <div>
+              <p class="text-xl text-red-400 mb-4">Unable to preview file</p>
+              <p class="text-gray-400 mb-4">{{ iframeError }}</p>
+              <button @click="downloadFile(previewFile)" class="bg-blue-600 px-4 py-2 rounded">Download to View</button>
+            </div>
+          </div>
+        </div>
         <div v-else class="text-center">
             <div class="text-6xl mb-4">📦</div>
             <p class="text-xl">Preview not available for this file type.</p>
@@ -102,6 +113,7 @@ const filterDate = ref('')
 const loading = ref(false)
 const previewFile = ref(null)
 const isAdmin = ref(false)
+const iframeError = ref(null)
 
 const fetchFiles = async () => {
   loading.value = true
@@ -127,6 +139,11 @@ const openPreview = (file) => {
 
 const closePreview = () => {
   previewFile.value = null
+  iframeError.value = null
+}
+
+const handleIframeError = () => {
+  iframeError.value = 'Failed to load PDF preview. The file may be unavailable or in an unsupported format.'
 }
 
 const formatSelectedDate = (value) => {
@@ -146,7 +163,9 @@ const isPreviewable = (file) => {
 const getFileUrl = (file) => {
     const token = localStorage.getItem('token')
     const baseUrl = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin)
-    return `${baseUrl}/api/files/${file.id}/content?token=${token}`
+    const url = `${baseUrl}/api/files/${file.id}/content?token=${token}`
+    console.log('File preview URL:', url)
+    return url
 }
 
 const downloadFile = async (file) => {

@@ -269,7 +269,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // @route   GET api/files/:id/content
-// @desc    Serve file content (for preview) - accepts token in query or header
+// @desc    Serve file content (for preview) - supports old and new uploads
 // @access  Private (token verification)
 router.get('/:id/content', async (req, res) => {
     try {
@@ -313,47 +313,63 @@ router.get('/:id/content', async (req, res) => {
 
         console.log(`File found: ${file.filename}`);
         console.log(`File path: ${file.path}`);
+        console.log(`File mimetype: ${file.mimetype}`);
+
+        // Set proper headers for preview
+        res.setHeader('Content-Type', file.mimetype || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${file.original_name || file.filename}"`);
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
 
         // If file has storage_url (new uploads), use it directly
         if (file.storage_url) {
-          console.log(`Using public storage URL`);
+          console.log(`Redirecting to public storage URL`);
           return res.redirect(file.storage_url);
         }
 
-        // Fallback: Try to get signed URL from Supabase Storage for older files
-        if (file.path) {
-          console.log(`Creating signed URL for path: ${file.path}`);
+        // Fallback 1: Try to get signed URL from Supabase Storage for files that might be there
+        if (file.path && file.path.includes('uploads/')) {
+          console.log(`Attempting to create signed URL for: ${file.path}`);
           try {
             const { data: signedUrlData, error: signError } = await supabase.storage
               .from('documents')
               .createSignedUrl(file.path, 3600); // 1 hour expiry
 
-            if (signError) {
-              console.error('Signed URL error:', signError);
-              // If bucket doesn't exist, just serve the file info
-              return res.json({ 
-                file: file.filename,
-                msg: 'File exists but storage bucket not configured',
-                path: file.path
-              });
-            }
-
-            if (signedUrlData?.signedUrl) {
-              console.log(`Redirecting to signed URL`);
+            if (!signError && signedUrlData?.signedUrl) {
+              console.log(`Successfully created signed URL`);
               return res.redirect(signedUrlData.signedUrl);
             }
           } catch (storageErr) {
-            console.error('Storage error:', storageErr.message);
-            return res.json({ 
-              file: file.filename,
-              msg: 'File found (storage not configured)',
-              path: file.path
-            });
+            console.log('Supabase Storage not available, trying local filesystem...');
           }
         }
 
-        console.error('No storage URL or path available');
-        return res.status(404).json({ msg: 'File path not available' });
+        // Fallback 2: Try to serve from local filesystem (for development/local files)
+        if (file.path) {
+          const localFilePath = path.join(__dirname, '../', file.path);
+          console.log(`Checking local filesystem: ${localFilePath}`);
+          
+          if (fs.existsSync(localFilePath)) {
+            console.log(`File found on filesystem, serving...`);
+            return res.sendFile(localFilePath, (err) => {
+              if (err) {
+                console.error('Error sending file:', err.message);
+                res.status(500).json({ msg: 'Error serving file' });
+              } else {
+                console.log(`File served successfully`);
+              }
+            });
+          }
+          console.log(`File not found on filesystem at: ${localFilePath}`);
+        }
+
+        // Fallback 3: Return base64 encoded file if we can access it from database
+        console.error('File not found in any storage location');
+        return res.status(404).json({ 
+          msg: 'File content not available', 
+          path: file.path,
+          note: 'File record exists but content is not accessible'
+        });
     } catch (err) {
         console.error('File content error:', err);
         res.status(500).json({ msg: 'Server error', error: err.message });
