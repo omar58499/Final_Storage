@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "/api/*"
+  to = "https://finalstorage-production-d35a.up.railway.app/api/:splat"
+  status = 200
+  force = true
