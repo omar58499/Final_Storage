@@ -162,10 +162,22 @@ const isPreviewable = (file) => {
 
 const getFileUrl = (file) => {
     const token = localStorage.getItem('token')
-    const baseUrl = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000' : window.location.origin)
-    const url = `${baseUrl}/api/files/${file.id}/content?token=${token}`
-    console.log('File preview URL:', url)
-    return url
+    if (!token) {
+      console.error('No auth token found!')
+      return null
+    }
+    
+    // Get the base API URL
+    const baseUrl = import.meta.env.VITE_API_URL || (
+      typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : 'http://localhost:5000'
+    )
+    
+    // Construct full URL with token
+    const fullUrl = `${baseUrl}/api/files/${file.id}/content?token=${encodeURIComponent(token)}`
+    console.log('Preview URL:', fullUrl)
+    return fullUrl
 }
 
 const downloadFile = async (file) => {

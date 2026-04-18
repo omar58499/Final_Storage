@@ -1,10 +1,13 @@
 import axios from 'axios'
 
+// Get API URL - MUST be set in environment for production
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
   typeof window !== 'undefined' && window.location.hostname === 'localhost'
     ? 'http://localhost:5000'
-    : window.location.origin
+    : 'http://localhost:5000' // Fallback - MUST set VITE_API_URL in production
 )
+
+console.log('API Base URL:', API_BASE_URL)
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
