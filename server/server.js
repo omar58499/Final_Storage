@@ -37,8 +37,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/files', require('./routes/files'));
 
-// Serve uploads statically (optional, but guarded by route usually)
-// app.use('/uploads', express.static('uploads'));
+// Serve uploads statically as fallback (with CORS headers)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 5000;
 

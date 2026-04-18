@@ -11,20 +11,11 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Set up Multer storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Save with unique name to prevent overwrite
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-
 const upload = multer({ 
-  storage: storage,
-  preservePath: true
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  }
 });
 
 function normalizeSelectedDate(dateValue) {
@@ -148,14 +139,44 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     // Generate Sequential GR Number
     const grNumber = await getNextGrNumber();
 
+    // Upload file to Supabase Storage
+    const storageBucket = 'documents';
+    const fileName = `${Date.now()}-${req.file.originalname}`;
+    const filePath = `uploads/${grNumber}/${fileName}`;
+
+    console.log(`Uploading to Supabase Storage: ${filePath}`);
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(storageBucket)
+      .upload(filePath, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Supabase Storage upload error:', uploadError);
+      return res.status(500).json({ msg: 'Error uploading file to storage', error: uploadError.message });
+    }
+
+    console.log('File uploaded to Supabase Storage:', uploadData);
+
+    // Get public URL for the uploaded file
+    const { data: publicURLData } = supabase.storage
+      .from(storageBucket)
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicURLData.publicUrl;
+    console.log('Public URL:', publicUrl);
+
     const insertData = {
-      filename: req.file.filename,
+      filename: fileName,
       original_name: req.file.originalname,
       display_name: displayName,
       gr_number: grNumber,
       size: req.file.size,
       mimetype: req.file.mimetype,
-      path: path.join('uploads', req.file.filename).replace(/\\/g, '/'),
+      path: filePath,
+      storage_url: publicUrl,
       user_selected_date: normalizeSelectedDate(date),
       person_name: personName,
       guardian_name: guardianName,
@@ -175,6 +196,8 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
 
     if (error) {
       console.error('Supabase insert error:', error);
+      // Clean up uploaded file from storage
+      await supabase.storage.from(storageBucket).remove([filePath]);
       return res.status(500).json({ msg: 'Error uploading file', error: error.message });
     }
 
@@ -245,6 +268,98 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/files/:id/content
+// @desc    Serve file content (for preview) - accepts token in query or header
+// @access  Private (token verification)
+router.get('/:id/content', async (req, res) => {
+    try {
+        console.log(`\n===== FILE CONTENT REQUEST =====`);
+        console.log(`File ID requested: ${req.params.id}`);
+
+        // Verify token from query parameter or header
+        const token = req.query.token || req.header('x-auth-token');
+        if (!token) {
+          console.error('No authentication token provided');
+          return res.status(401).json({ msg: 'No authentication token' });
+        }
+
+        // Verify JWT token
+        let userId;
+        try {
+          const jwt = require('jsonwebtoken');
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          userId = decoded.user.id;
+          console.log(`Authenticated user: ${userId}`);
+        } catch (jwtErr) {
+          console.error('Invalid token:', jwtErr.message);
+          return res.status(401).json({ msg: 'Invalid token' });
+        }
+
+        const { data: file, error } = await supabase
+          .from('files')
+          .select('*')
+          .eq('id', req.params.id)
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          return res.status(404).json({ msg: 'File not found', error: error.message });
+        }
+
+        if (!file) {
+          console.error('File record not found');
+          return res.status(404).json({ msg: 'File not found' });
+        }
+
+        console.log(`File found: ${file.filename}`);
+        console.log(`File path: ${file.path}`);
+
+        // If file has storage_url (new uploads), use it directly
+        if (file.storage_url) {
+          console.log(`Using public storage URL`);
+          return res.redirect(file.storage_url);
+        }
+
+        // Fallback: Try to get signed URL from Supabase Storage for older files
+        if (file.path) {
+          console.log(`Creating signed URL for path: ${file.path}`);
+          try {
+            const { data: signedUrlData, error: signError } = await supabase.storage
+              .from('documents')
+              .createSignedUrl(file.path, 3600); // 1 hour expiry
+
+            if (signError) {
+              console.error('Signed URL error:', signError);
+              // If bucket doesn't exist, just serve the file info
+              return res.json({ 
+                file: file.filename,
+                msg: 'File exists but storage bucket not configured',
+                path: file.path
+              });
+            }
+
+            if (signedUrlData?.signedUrl) {
+              console.log(`Redirecting to signed URL`);
+              return res.redirect(signedUrlData.signedUrl);
+            }
+          } catch (storageErr) {
+            console.error('Storage error:', storageErr.message);
+            return res.json({ 
+              file: file.filename,
+              msg: 'File found (storage not configured)',
+              path: file.path
+            });
+          }
+        }
+
+        console.error('No storage URL or path available');
+        return res.status(404).json({ msg: 'File path not available' });
+    } catch (err) {
+        console.error('File content error:', err);
+        res.status(500).json({ msg: 'Server error', error: err.message });
+    }
+});
+
 // @route   GET api/files/:id
 // @desc    Get file info
 // @access  Private
@@ -267,39 +382,6 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// @route   GET api/files/:id/content
-// @desc    Serve file content (for preview)
-// @access  Private
-router.get('/:id/content', async (req, res) => {
-    try {
-        const token = req.query.token || req.header('x-auth-token');
-        if(!token) return res.status(401).send('No token');
-        
-        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
-        const userId = decoded.user.id;
-
-        const { data: file, error } = await supabase
-          .from('files')
-          .select('*')
-          .eq('id', req.params.id)
-          .single();
-
-        if (error || !file) {
-          return res.status(404).send('File not found');
-        }
-
-        const filePath = path.join(__dirname, '../', file.path);
-        if (fs.existsSync(filePath)) {
-            res.sendFile(filePath);
-        } else {
-            res.status(404).send('File not found on server');
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Server error');
-    }
-});
-
 // @route   DELETE api/files/:id
 // @desc    Delete file
 // @access  Private
@@ -315,18 +397,23 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Only admin can delete files' });
     }
 
-
     if (error || !file) {
       return res.status(404).json({ msg: 'File not found' });
     }
 
-
-    // Delete from FS
-    const filePath = path.join(__dirname, '../', file.path);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Delete from Supabase Storage if path exists
+    if (file.path) {
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .remove([file.path]);
+      
+      if (storageError) {
+        console.warn('Warning: Could not delete file from storage:', storageError);
+        // Continue with database deletion even if storage deletion fails
+      }
     }
 
+    // Delete from database
     const { error: deleteError } = await supabase
       .from('files')
       .delete()
